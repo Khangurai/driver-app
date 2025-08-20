@@ -1,11 +1,31 @@
 import React, { useState } from "react";
-import { Alert, Button, Linking, View, Text, TextInput, StyleSheet } from "react-native";
+import { Alert, Linking, View, ScrollView, StyleSheet } from "react-native";
 import * as Location from "expo-location";
+import { TextInput, Button, Text, Card, Title, Divider, IconButton } from "react-native-paper";
+
+const initialUsers = [
+  { name: "Aung Kyaw", lat: 16.776474, lng: 96.171004 },
+  { name: "Kyaw Thaung", lat: 16.77122, lng: 96.175772 },
+  { name: "Zaw Min", lat: 16.776539, lng: 96.168959 },
+  { name: "Mya Hnin", lat: 16.778781, lng: 96.16733 },
+  { name: "Ko Ko", lat: 16.78585, lng: 96.161588 },
+  { name: "Aye Chan", lat: 16.786012, lng: 96.14788 },
+  { name: "Soe Win", lat: 16.779877, lng: 96.143969 },
+  { name: "Hla Hla", lat: 16.780137, lng: 96.13744 },
+  { name: "Thura", lat: 16.780642, lng: 96.131666 },
+  { name: "Than Myint", lat: 16.793038, lng: 96.122994 },
+  { name: "Moe Moe", lat: 16.802123, lng: 96.122292 },
+  { name: "Aung Aung", lat: 16.803815, lng: 96.12437 },
+  { name: "Khin Khin", lat: 16.803723, lng: 96.133336 },
+  { name: "Nay Lin", lat: 16.804693, lng: 96.133012 },
+  { name: "Wai Yan", lat: 16.815558, lng: 96.128566 },
+];
 
 const MapScreen = () => {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [pickupEnabled, setPickupEnabled] = useState(false);
+  const [users, setUsers] = useState(initialUsers);
 
   const getUserLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -13,7 +33,6 @@ const MapScreen = () => {
       Alert.alert("Permission denied", "Location permission is required.");
       return;
     }
-
     let location = await Location.getCurrentPositionAsync({});
     const { latitude, longitude } = location.coords;
     setLatitude(latitude.toString());
@@ -33,9 +52,7 @@ const MapScreen = () => {
       return;
     }
 
-    const waypoints =
-      "16.912737490913642,96.16598476643031/16.90541772192416,96.16223168100738/16.894368475758945,96.15660205287303/16.868123922963115,96.15515855847958/16.851546537281294,96.20019558355462/16.83427688172054,96.15486985962633/16.82750674711277,96.15732380009516/16.806642157516247,96.15674640269384/16.803853392137157,96.13503888725135/16.816132425005865,96.1277866600959";
-
+    const waypoints = users.map(u => `${u.lat},${u.lng}`).join("/");
     const url = `https://www.google.com/maps/dir/${latitude},${longitude}/${waypoints}`;
 
     const supported = await Linking.canOpenURL(url);
@@ -54,62 +71,86 @@ const MapScreen = () => {
     setLongitude("");
   };
 
+  const reloadUsers = () => {
+    setUsers([...initialUsers]);
+    Alert.alert("Users reloaded");
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <TextInput
-        style={styles.input}
-        placeholder="Enter Latitude"
+        label="Latitude"
         value={latitude}
         onChangeText={setLatitude}
         keyboardType="numeric"
+        mode="outlined"
+        style={styles.input}
       />
       <TextInput
-        style={styles.input}
-        placeholder="Enter Longitude"
+        label="Longitude"
         value={longitude}
         onChangeText={setLongitude}
         keyboardType="numeric"
+        mode="outlined"
+        style={styles.input}
       />
 
       <View style={styles.buttonGroup}>
-        <Button title="Get My Current Location" onPress={getUserLocation} />
-        <Button title="Reset Location" onPress={resetLocation} color="red" />
+        <Button mode="contained" onPress={getUserLocation} style={styles.button}>
+          Get My Current Location
+        </Button>
+        <Button mode="contained" onPress={resetLocation} buttonColor="#d32f2f" style={styles.button}>
+          Reset Location
+        </Button>
       </View>
 
-      {latitude && longitude ? (
+      {latitude && longitude && (
         <Text style={styles.coords}>
-          Current Location: 
-Lat: {latitude} 
-Lng: {longitude}
+          Current Location:{"\n"}Lat: {latitude}{"\n"}Lng: {longitude}
         </Text>
-      ) : null}
+      )}
 
-      <Button title="Start Route in Google Maps" onPress={openGoogleMaps} color="green" />
+      <Button mode="contained" onPress={openGoogleMaps} buttonColor="#388e3c" style={{ marginVertical: 10 }}>
+        Start Route in Google Maps
+      </Button>
 
-      <View style={{ marginTop: 10 }}>
-        <Button title="Confirm Pickup" onPress={confirmPickup} disabled={!pickupEnabled} color="blue" />
+      <Button mode="contained" onPress={confirmPickup} disabled={!pickupEnabled} buttonColor="#1976d2">
+        Confirm Pickup
+      </Button>
+
+      <Divider style={{ marginVertical: 20 }} />
+
+      {/* Users Header with Reload Icon */}
+      <View style={styles.usersHeader}>
+        <Title style={{ marginBottom: 10 }}>Users (Team001)</Title>
+        <IconButton
+          icon="reload"
+          size={24}
+          onPress={reloadUsers}
+          style={{ marginBottom: 10 }}
+        />
       </View>
-    </View>
+
+      {users.map((user, index) => (
+        <Card key={index} style={styles.userCard}>
+          <Card.Content>
+            <Text style={{ fontWeight: "600" }}>{user.name}</Text>
+            <Text style={{ color: "#555" }}>{user.lat},{user.lng}</Text>
+          </Card.Content>
+        </Card>
+      ))}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { width: "100%", marginTop: 20, padding: 16 },
-  input: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    marginVertical: 8,
-    borderRadius: 6,
-  },
-  buttonGroup: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginVertical: 10,
-  },
+  container: { flex: 1, padding: 16 },
+  input: { marginVertical: 8 },
+  buttonGroup: { flexDirection: "row", justifyContent: "space-between", marginVertical: 10 },
+  button: { flex: 1, marginHorizontal: 4 },
   coords: { marginTop: 15, fontSize: 16, textAlign: "center" },
+  usersHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  userCard: { marginBottom: 8 },
 });
 
 export default MapScreen;
