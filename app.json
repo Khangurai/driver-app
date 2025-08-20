@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.khangurai.driverapp"
     },
     "web": {
       "bundler": "metro",
@@ -33,10 +34,22 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "sk.eyJ1Ijoia2FpNzgiLCJhIjoiY21lN3pyZHFtMDh0aDJrcGdheDNzb2N2aiJ9.bqj0Dd2xDOXKXa5dng7-zg"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d40627ab-de98-4f66-9d5a-6102ddd02e63"
+      }
     }
   }
 }
