@@ -1,7 +1,15 @@
-import React, { useState } from "react";
-import { Alert, Linking, View, ScrollView, StyleSheet } from "react-native";
 import * as Location from "expo-location";
-import { TextInput, Button, Text, Card, Title, Divider, IconButton } from "react-native-paper";
+import React, { useState } from "react";
+import { Alert, Linking, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Button,
+  Card,
+  Divider,
+  IconButton,
+  Text,
+  TextInput,
+  Title,
+} from "react-native-paper";
 
 const initialUsers = [
   { name: "Aung Kyaw", lat: 16.776474, lng: 96.171004 },
@@ -46,26 +54,54 @@ const MapScreen = () => {
     Alert.alert("Reset", "Location has been cleared.");
   };
 
+  // 🔹 CHANGED SECTION: openGoogleMaps
   const openGoogleMaps = async () => {
     if (!latitude || !longitude) {
       Alert.alert("Error", "Please get or enter a location first.");
       return;
     }
 
-    const waypoints = users.map(u => `${u.lat},${u.lng}`).join("/");
-    const url = `https://www.google.com/maps/dir/${latitude},${longitude}/${waypoints}`;
+    const origin = `${latitude},${longitude}`;
+    const destination = `${users[users.length - 1].lat},${
+      users[users.length - 1].lng
+    }`;
+    const waypoints = users
+      .slice(0, -1)
+      .map((u) => `${u.lat},${u.lng}`)
+      .join("|");
 
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
+    // ✅ App deep link (Google Maps native app)
+    const googleMapsAppUrl = `comgooglemaps://?saddr=${origin}&daddr=${destination}&waypoints=${encodeURIComponent(
+      waypoints
+    )}`;
+
+    // ✅ Web fallback (works in Expo dev build without config)
+    const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(
+      waypoints
+    )}`;
+
+    try {
+      // 🔹 If in dev build, `canOpenURL` for comgooglemaps may fail unless you add config.
+      const supported = await Linking.canOpenURL(googleMapsAppUrl);
+
+      if (supported) {
+        await Linking.openURL(googleMapsAppUrl);
+      } else {
+        // fallback to web (always works)
+        await Linking.openURL(googleMapsWebUrl);
+      }
       setPickupEnabled(true);
-    } else {
-      Alert.alert("Error", "Can't open Google Maps");
+    } catch (err) {
+      Alert.alert("Error opening maps", err.message);
     }
   };
+  // 🔹 END CHANGED SECTION
 
   const confirmPickup = () => {
-    Alert.alert("Trip Completed", "You have confirmed the pickup. End of trip!");
+    Alert.alert(
+      "Trip Completed",
+      "You have confirmed the pickup. End of trip!"
+    );
     setPickupEnabled(false);
     setLatitude("");
     setLongitude("");
@@ -96,25 +132,45 @@ const MapScreen = () => {
       />
 
       <View style={styles.buttonGroup}>
-        <Button mode="contained" onPress={getUserLocation} style={styles.button}>
+        <Button
+          mode="contained"
+          onPress={getUserLocation}
+          style={styles.button}
+        >
           Get My Current Location
         </Button>
-        <Button mode="contained" onPress={resetLocation} buttonColor="#d32f2f" style={styles.button}>
+        <Button
+          mode="contained"
+          onPress={resetLocation}
+          buttonColor="#d32f2f"
+          style={styles.button}
+        >
           Reset Location
         </Button>
       </View>
 
       {latitude && longitude && (
         <Text style={styles.coords}>
-          Current Location:{"\n"}Lat: {latitude}{"\n"}Lng: {longitude}
+          Current Location:{"\n"}Lat: {latitude}
+          {"\n"}Lng: {longitude}
         </Text>
       )}
 
-      <Button mode="contained" onPress={openGoogleMaps} buttonColor="#388e3c" style={{ marginVertical: 10 }}>
+      <Button
+        mode="contained"
+        onPress={openGoogleMaps}
+        buttonColor="#388e3c"
+        style={{ marginVertical: 10 }}
+      >
         Start Route in Google Maps
       </Button>
 
-      <Button mode="contained" onPress={confirmPickup} disabled={!pickupEnabled} buttonColor="#1976d2">
+      <Button
+        mode="contained"
+        onPress={confirmPickup}
+        disabled={!pickupEnabled}
+        buttonColor="#1976d2"
+      >
         Confirm Pickup
       </Button>
 
@@ -135,7 +191,9 @@ const MapScreen = () => {
         <Card key={index} style={styles.userCard}>
           <Card.Content>
             <Text style={{ fontWeight: "600" }}>{user.name}</Text>
-            <Text style={{ color: "#555" }}>{user.lat},{user.lng}</Text>
+            <Text style={{ color: "#555" }}>
+              {user.lat},{user.lng}
+            </Text>
           </Card.Content>
         </Card>
       ))}
@@ -146,10 +204,18 @@ const MapScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   input: { marginVertical: 8 },
-  buttonGroup: { flexDirection: "row", justifyContent: "space-between", marginVertical: 10 },
+  buttonGroup: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 10,
+  },
   button: { flex: 1, marginHorizontal: 4 },
   coords: { marginTop: 15, fontSize: 16, textAlign: "center" },
-  usersHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  usersHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   userCard: { marginBottom: 8 },
 });
 
