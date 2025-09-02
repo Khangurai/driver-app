@@ -1,39 +1,30 @@
+import React, { useState, useEffect } from "react";
+import { Alert, ScrollView, View, Linking, StyleSheet } from "react-native";
+import { Button, Card, Divider, IconButton, Text, TextInput, Title } from "react-native-paper";
 import * as Location from "expo-location";
-import React, { useState } from "react";
-import { Alert, Linking, ScrollView, StyleSheet, View } from "react-native";
-import {
-  Button,
-  Card,
-  Divider,
-  IconButton,
-  Text,
-  TextInput,
-  Title,
-} from "react-native-paper";
-
-const initialUsers = [
-  { name: "Aung Kyaw", lat: 16.776474, lng: 96.171004 },
-  { name: "Kyaw Thaung", lat: 16.77122, lng: 96.175772 },
-  { name: "Zaw Min", lat: 16.776539, lng: 96.168959 },
-  { name: "Mya Hnin", lat: 16.778781, lng: 96.16733 },
-  { name: "Ko Ko", lat: 16.78585, lng: 96.161588 },
-  { name: "Aye Chan", lat: 16.786012, lng: 96.14788 },
-  { name: "Soe Win", lat: 16.779877, lng: 96.143969 },
-  { name: "Hla Hla", lat: 16.780137, lng: 96.13744 },
-  { name: "Thura", lat: 16.780642, lng: 96.131666 },
-  { name: "Than Myint", lat: 16.793038, lng: 96.122994 },
-  { name: "Moe Moe", lat: 16.802123, lng: 96.122292 },
-  { name: "Aung Aung", lat: 16.803815, lng: 96.12437 },
-  { name: "Khin Khin", lat: 16.803723, lng: 96.133336 },
-  { name: "Nay Lin", lat: 16.804693, lng: 96.133012 },
-  { name: "Wai Yan", lat: 16.815558, lng: 96.128566 },
-];
-
+import {supabase} from "../../services/supabase"
+ 
 const MapScreen = () => {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [pickupEnabled, setPickupEnabled] = useState(false);
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
+
+  // 🔹 Fetch users from Supabase
+  const fetchUsers = async () => {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, name, latitude, longitude, status")
+      .eq("status", true)
+      .order("id", { ascending: true });
+
+    if (error) Alert.alert("Error fetching users", error.message);
+    else setUsers(data.map(u => ({ name: u.name, lat: parseFloat(u.latitude), lng: parseFloat(u.longitude) })));
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const getUserLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
@@ -42,158 +33,61 @@ const MapScreen = () => {
       return;
     }
     let location = await Location.getCurrentPositionAsync({});
-    const { latitude, longitude } = location.coords;
-    setLatitude(latitude.toString());
-    setLongitude(longitude.toString());
+    setLatitude(location.coords.latitude.toString());
+    setLongitude(location.coords.longitude.toString());
   };
 
   const resetLocation = () => {
-    setLatitude("");
-    setLongitude("");
-    setPickupEnabled(false);
-    Alert.alert("Reset", "Location has been cleared.");
+    setLatitude(""); setLongitude(""); setPickupEnabled(false);
+    Alert.alert("Reset", "Location cleared.");
   };
 
-  // 🔹 CHANGED SECTION: openGoogleMaps
   const openGoogleMaps = async () => {
-    if (!latitude || !longitude) {
-      Alert.alert("Error", "Please get or enter a location first.");
-      return;
-    }
-
+    if (!latitude || !longitude) { Alert.alert("Error", "Get or enter location first."); return; }
     const origin = `${latitude},${longitude}`;
-    const destination = `${users[users.length - 1].lat},${
-      users[users.length - 1].lng
-    }`;
-    const waypoints = users
-      .slice(0, -1)
-      .map((u) => `${u.lat},${u.lng}`)
-      .join("|");
+    const destination = `${users[users.length - 1]?.lat},${users[users.length - 1]?.lng}`;
+    const waypoints = users.slice(0, -1).map(u => `${u.lat},${u.lng}`).join("|");
 
-    // ✅ App deep link (Google Maps native app)
-    const googleMapsAppUrl = `comgooglemaps://?saddr=${origin}&daddr=${destination}&waypoints=${encodeURIComponent(
-      waypoints
-    )}`;
-
-    // ✅ Web fallback (works in Expo dev build without config)
-    const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(
-      waypoints
-    )}`;
+    const googleMapsAppUrl = `comgooglemaps://?saddr=${origin}&daddr=${destination}&waypoints=${encodeURIComponent(waypoints)}`;
+    const googleMapsWebUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${encodeURIComponent(waypoints)}`;
 
     try {
-      // 🔹 If in dev build, `canOpenURL` for comgooglemaps may fail unless you add config.
       const supported = await Linking.canOpenURL(googleMapsAppUrl);
-
-      if (supported) {
-        await Linking.openURL(googleMapsAppUrl);
-      } else {
-        // fallback to web (always works)
-        await Linking.openURL(googleMapsWebUrl);
-      }
+      if (supported) await Linking.openURL(googleMapsAppUrl);
+      else await Linking.openURL(googleMapsWebUrl);
       setPickupEnabled(true);
-    } catch (err) {
-      Alert.alert("Error opening maps", err.message);
-    }
-  };
-  // 🔹 END CHANGED SECTION
-
-  const confirmPickup = () => {
-    Alert.alert(
-      "Trip Completed",
-      "You have confirmed the pickup. End of trip!"
-    );
-    setPickupEnabled(false);
-    setLatitude("");
-    setLongitude("");
+    } catch (err) { Alert.alert("Error opening maps", err.message); }
   };
 
-  const reloadUsers = () => {
-    setUsers([...initialUsers]);
-    Alert.alert("Users reloaded");
-  };
+  const confirmPickup = () => { Alert.alert("Trip Completed", "Pickup confirmed!"); setPickupEnabled(false); setLatitude(""); setLongitude(""); };
 
   return (
     <ScrollView style={styles.container}>
-      <TextInput
-        label="Latitude"
-        value={latitude}
-        onChangeText={setLatitude}
-        keyboardType="numeric"
-        mode="outlined"
-        style={styles.input}
-      />
-      <TextInput
-        label="Longitude"
-        value={longitude}
-        onChangeText={setLongitude}
-        keyboardType="numeric"
-        mode="outlined"
-        style={styles.input}
-      />
+      <TextInput label="Latitude" value={latitude} onChangeText={setLatitude} keyboardType="numeric" mode="outlined" style={styles.input} />
+      <TextInput label="Longitude" value={longitude} onChangeText={setLongitude} keyboardType="numeric" mode="outlined" style={styles.input} />
 
       <View style={styles.buttonGroup}>
-        <Button
-          mode="contained"
-          onPress={getUserLocation}
-          style={styles.button}
-        >
-          Get My Current Location
-        </Button>
-        <Button
-          mode="contained"
-          onPress={resetLocation}
-          buttonColor="#d32f2f"
-          style={styles.button}
-        >
-          Reset Location
-        </Button>
+        <Button mode="contained" onPress={getUserLocation} style={styles.button}>Get My Location</Button>
+        <Button mode="contained" onPress={resetLocation} buttonColor="#d32f2f" style={styles.button}>Reset</Button>
       </View>
 
-      {latitude && longitude && (
-        <Text style={styles.coords}>
-          Current Location:{"\n"}Lat: {latitude}
-          {"\n"}Lng: {longitude}
-        </Text>
-      )}
+      {latitude && longitude && <Text style={styles.coords}>Lat: {latitude}{"\n"}Lng: {longitude}</Text>}
 
-      <Button
-        mode="contained"
-        onPress={openGoogleMaps}
-        buttonColor="#388e3c"
-        style={{ marginVertical: 10 }}
-      >
-        Start Route in Google Maps
-      </Button>
-
-      <Button
-        mode="contained"
-        onPress={confirmPickup}
-        disabled={!pickupEnabled}
-        buttonColor="#1976d2"
-      >
-        Confirm Pickup
-      </Button>
+      <Button mode="contained" onPress={openGoogleMaps} buttonColor="#388e3c" style={{ marginVertical: 10 }}>Start Route</Button>
+      <Button mode="contained" onPress={confirmPickup} disabled={!pickupEnabled} buttonColor="#1976d2">Confirm Pickup</Button>
 
       <Divider style={{ marginVertical: 20 }} />
 
-      {/* Users Header with Reload Icon */}
       <View style={styles.usersHeader}>
-        <Title style={{ marginBottom: 10 }}>Users (Team001)</Title>
-        <IconButton
-          icon="reload"
-          size={24}
-          onPress={reloadUsers}
-          style={{ marginBottom: 10 }}
-        />
+        <Title>Users</Title>
+        <IconButton icon="reload" size={24} onPress={fetchUsers} />
       </View>
 
-      {users.map((user, index) => (
-        <Card key={index} style={styles.userCard}>
+      {users.map((u, idx) => (
+        <Card key={idx} style={styles.userCard}>
           <Card.Content>
-            <Text style={{ fontWeight: "600" }}>{user.name}</Text>
-            <Text style={{ color: "#555" }}>
-              {user.lat},{user.lng}
-            </Text>
+            <Text style={{ fontWeight: "600" }}>{u.name}</Text>
+            <Text style={{ color: "#555" }}>{u.lat},{u.lng}</Text>
           </Card.Content>
         </Card>
       ))}
@@ -204,18 +98,10 @@ const MapScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   input: { marginVertical: 8 },
-  buttonGroup: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 10,
-  },
+  buttonGroup: { flexDirection: "row", justifyContent: "space-between", marginVertical: 10 },
   button: { flex: 1, marginHorizontal: 4 },
   coords: { marginTop: 15, fontSize: 16, textAlign: "center" },
-  usersHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+  usersHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   userCard: { marginBottom: 8 },
 });
 
