@@ -23,6 +23,7 @@ const LoginScreen = () => {
         placeholder="Enter Team Code"
         value={teamCode}
         onChangeText={setTeamCode}
+        keyboardType="number-pad"
       />
       <Button title="Submit Team Code" onPress={checkTeamCode} />
     </View>
